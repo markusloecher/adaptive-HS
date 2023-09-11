@@ -44,11 +44,5 @@ def run_experiment(
     importances = pd.concat([pd.DataFrame.from_records(r[0]) for r in results])
     scores = pd.concat([pd.DataFrame.from_records(r[1]) for r in results])
 
-    importances.to_csv(
-        os.path.join(out_path, "importances.csv"),
-        index=True,
-        index_label="index",
-    )
-    scores.to_csv(
-        os.path.join(out_path, "scores.csv"), index=True, index_label="index"
-    )
+    importances.to_csv(os.path.join(out_path, "importances.csv"), index=False)
+    scores.to_csv(os.path.join(out_path, "scores.csv"), index=False)
