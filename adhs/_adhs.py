@@ -167,6 +167,7 @@ class ShrinkageEstimator(BaseEstimator):
                 self.entropies_.append(entropies)
                 self.log_cardinalities_.append(log_cardinalities)
                 self.alphas_.append(alphas)
+                self.global_alphas_.append(global_alphas)
         else:  # Single tree
             (
                 entropies,

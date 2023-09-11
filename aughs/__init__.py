@@ -1,2 +1,0 @@
-from ._aughs import ShrinkageClassifier, ShrinkageRegressor
-from ._cross_val_shrinkage import cross_val_shrinkage

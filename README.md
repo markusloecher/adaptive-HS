@@ -1,22 +1,24 @@
-# Scikit-Learn-compatible implementation of Augmented Hierarchical Shrinkage
-This directory contains an implementation of Augmented Hierarchical Shrinkage that is compatible with Scikit-Learn. It exports 2 classes:
+# Scikit-Learn-compatible implementation of Adaptive Hierarchical Shrinkage
+This directory contains an implementation of Adaptive Hierarchical Shrinkage that is compatible with Scikit-Learn. It exports 2 classes:
 - `ShrinkageClassifier`
 - `ShrinkageRegressor`
 
 ## Installation
-To be able to run the scripts in the `experiments` directory, this
-repository must be installed as a package. This can be done in a new conda
+### `adhs` Package
+The `adhs` package, which contains the implementations of
+Adaptive Hierarchical Shrinkage, can be installed using:
+```
+pip install .
+```
+
+### Experiments
+To be able to run the scripts in the `experiments` directory, some extra
+requirements are needed. These can be installed in a new conda
 environment as follows:
 ```
 conda create -n shrinkage python=3.10
 conda activate shrinkage
-pip install .
-```
-
-If you want to make changes to the implementation, it is recommended to use
-an editable install:
-```
-pip install -e .
+pip install .[experiments]
 ```
 
 ## Basic API

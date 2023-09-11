@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 import numpy as np
-from aughs import ShrinkageClassifier, cross_val_shrinkage
+from adhs import ShrinkageClassifier, cross_val_shrinkage
 from tqdm import trange
 from argparse import ArgumentParser
 import joblib
