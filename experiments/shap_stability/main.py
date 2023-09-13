@@ -48,7 +48,8 @@ if __name__ == "__main__":
 
         results: List[pd.DataFrame] = []
         if args.n_jobs == 1:
-            for _ in trange(args.n_replications):
+            prog = trange(args.n_replications, desc=f"Running {ds_name}")
+            for _ in prog:
                 results.append(run_single_replication(
                     feature_names,
                     args.shrink_modes,

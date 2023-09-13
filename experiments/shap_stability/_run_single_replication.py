@@ -55,7 +55,7 @@ def run_single_replication(
         # Compute SHAP values on X_shap, y_shap
         explainer = TreeExplainer(hsc.estimator_, X_train)
         # [50, n_features]
-        shap_values = np.array(explainer.shap_values(X_shap))
+        shap_values = np.array(explainer.shap_values(X_shap, check_additivity=False))
 
         # Save SHAP values
         result_dict["shrink_mode"] += [shrink_mode] * 50
