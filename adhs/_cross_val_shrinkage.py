@@ -9,6 +9,7 @@ from sklearn.metrics import (
 )
 from joblib import Parallel, delayed
 
+
 def cross_val_shrinkage(
     shrinkage_estimator,
     X,
@@ -20,6 +21,9 @@ def cross_val_shrinkage(
     verbose=0,
     return_param_values=True,
 ):
+    """
+    Parallelization happens over the grid points, not over the folds.
+    """
     if score_fn is None:
         score_fn = roc_auc_score
     cv = KFold(n_splits=n_splits, shuffle=True, random_state=0)
@@ -39,6 +43,10 @@ def cross_val_shrinkage(
         Helper function to train the base model for a single train-test split.
         """
         X_train, y_train = X[train_index], y[train_index]
+        # Set shrink mode to a value that will be used in the grid search
+        # This prevents computing node values for shrink modes that will
+        # not be used in the grid search
+        estimator.shrink_mode = shrink_modes[0]
         estimator.fit(X_train, y_train)
         return estimator
 
@@ -48,12 +56,19 @@ def cross_val_shrinkage(
         shrinkage parameters, on all folds.
         """
         scores = []
-        for i, (_, test_index) in enumerate(cv.split(X)):
+        for i, (train_index, test_index) in enumerate(cv.split(X)):
             X_test = X[test_index]
             y_test = y[test_index]
+            X_train = X[train_index]
+            y_train = y[train_index]
 
-            estimator = deepcopy(fold_models[i])
-            estimator.reshrink(shrink_mode=shrink_mode, lmb=lmb)
+            if n_jobs != 1:
+                estimator = deepcopy(fold_models[i])
+            else:
+                estimator = fold_models[i]
+            estimator.reshrink(
+                shrink_mode=shrink_mode, lmb=lmb, X=X_train, y=y_train
+            )
             scores.append(score_fn(y_test, estimator.predict(X_test)))
         return np.mean(scores)
 
@@ -111,4 +126,3 @@ def cross_val_shrinkage(
     if return_param_values:
         return scores, param_shrink_mode, param_lmb
     return scores
-

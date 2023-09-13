@@ -22,36 +22,38 @@ def run_single_replication(
         # Create base classifier
         hsc = ShrinkageClassifier(base_estimator=base_estimator)
 
-        # Handle each shrinkage mode separately
-        for shrink_mode in shrink_modes:
-            # Perform grid search for best value of lambda
-            param_grid = {"shrink_mode": [shrink_mode], "lmb": lambdas}
-            lmb_scores = cross_val_shrinkage(
-                hsc,
-                X,
-                y,
-                param_grid,
-                n_splits=5,
-                score_fn=roc_auc_score,
-                n_jobs=1,
-                return_param_values=False,
-                verbose=0,
+        # Run cross-validation to get best lambda for each shrink mode
+        scores, param_shrink_mode, param_lmb = cross_val_shrinkage(
+            hsc,
+            X,
+            y,
+            {"shrink_mode": shrink_modes, "lmb": lambdas},
+            n_splits=5,
+            score_fn=roc_auc_score,
+            n_jobs=1,
+            return_param_values=True,
+            verbose=0,
+        )
+        # Save scores and get best score for each shrink mode
+        best_scores = {sm: -np.inf for sm in shrink_modes}
+        best_lambdas = {sm: None for sm in shrink_modes}
+        for score, shrink_mode, lmb in zip(scores, param_shrink_mode, param_lmb):
+            result_scores.append(
+                {
+                    "relevance": rel_str,
+                    "shrink_mode": shrink_mode,
+                    "lambda": lmb,
+                    "ROC AUC": score,
+                }
             )
-            for lmb, score in zip(lambdas, lmb_scores):
-                result_scores.append(
-                    {
-                        "relevance": rel_str,
-                        "shrink_mode": shrink_mode,
-                        "lambda": lmb,
-                        "ROC AUC": score,
-                    }
-                )
-            best_idx = np.argmax(lmb_scores)
-            best_lmb = lambdas[best_idx]
-
-            # Get feature importances for best value of lambda
+            if score > best_scores[shrink_mode]:
+                best_scores[shrink_mode] = score
+                best_lambdas[shrink_mode] = lmb
+        
+        # Get feature importances for best lambda for each shrink mode
+        for shrink_mode in shrink_modes:
             hsc.shrink_mode = shrink_mode
-            hsc.lmb = best_lmb
+            hsc.lmb = best_lambdas[shrink_mode]
             hsc.fit(X, y)
             importances_record = {
                 f"MDI_{i}": imp
@@ -59,7 +61,7 @@ def run_single_replication(
             }
             importances_record["relevance"] = rel_str
             importances_record["shrink_mode"] = shrink_mode
-            importances_record["lambda"] = best_lmb
+            importances_record["lambda"] = best_lambdas[shrink_mode]
             result_importances.append(importances_record)
     return result_importances, result_scores
 

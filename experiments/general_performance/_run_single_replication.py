@@ -40,10 +40,14 @@ def run_single_replication(
     # Compute scores for all shrink modes and lambdas
     for shrink_mode in shrink_modes:
         for lmb in lambdas:
-            model.reshrink(shrink_mode=shrink_mode, lmb=lmb)
+            model.reshrink(
+                shrink_mode=shrink_mode,
+                lmb=lmb,
+                X=X[train_index],
+                y=y[train_index],
+            )
             scores[shrink_mode].append(
                 score_fn(y[test_index], model.predict(X[test_index]))
             )
 
     return scores
-

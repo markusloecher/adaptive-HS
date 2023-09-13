@@ -2,14 +2,17 @@ from abc import abstractmethod
 from copy import deepcopy
 
 import numpy as np
+from numpy import typing as npt
 import scipy
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.estimator_checks import check_estimator
+from typing import Dict, List
 
 from ._alpha import compute_alpha, compute_global_alpha
 from ._util import normalize_value, check_fit_arguments
+
 
 class ShrinkageEstimator(BaseEstimator):
     def __init__(
@@ -18,13 +21,26 @@ class ShrinkageEstimator(BaseEstimator):
         shrink_mode: str = "hs",
         lmb: float = 1,
         random_state=None,
-        compute_all_values=True,
     ):
         self.base_estimator = base_estimator
         self.shrink_mode = shrink_mode
         self.lmb = lmb
         self.random_state = random_state
-        self.compute_all_values = compute_all_values
+
+        self.node_values: Dict[str, List | None] = {
+            "entropy": None,
+            "log_cardinality": None,
+            "alpha": None,
+            "global_alpha": None,
+        }
+
+        self.shrink_mode_to_value_type = {
+            "hs": None,
+            "hs_entropy": "entropy",
+            "hs_log_cardinality": "log_cardinality",
+            "hs_permutation": "alpha",
+            "hs_global_permutation": "global_alpha",
+        }
 
     @abstractmethod
     def get_default_estimator(self):
@@ -35,11 +51,9 @@ class ShrinkageEstimator(BaseEstimator):
         dt,
         X_cond,
         y_cond,
+        value_type: str,
         node=0,
-        entropies=None,
-        log_cardinalities=None,
-        alphas=None,
-        global_alphas=None,
+        values: npt.NDArray | None = None,
         X_shuffled=None,
         X_shuffled_cond=None,
     ):
@@ -82,58 +96,63 @@ class ShrinkageEstimator(BaseEstimator):
         threshold = dt.tree_.threshold[node]
         criterion = dt.criterion
 
-        # Initialize arrays if not provided
-        if entropies is None:
+        # Initialize array if not provided (root node)
+        if values is None:
             num_nodes = len(dt.tree_.n_node_samples)
-            entropies = np.zeros(num_nodes)
-            log_cardinalities = np.zeros(num_nodes)
-            alphas = np.zeros(num_nodes)
-            global_alphas = np.zeros(num_nodes)
+            values = np.zeros(num_nodes)
 
+        if value_type in ["alpha", "global_alpha"]:
             # Shuffle the columns of X separately
             X_shuffled = X_cond.copy()
             for i in range(X_shuffled.shape[1]):
                 X_shuffled[:, i] = np.random.permutation(X_shuffled[:, i])
             X_shuffled_cond = X_shuffled.copy()
 
-        assert log_cardinalities is not None
-        assert alphas is not None
-        assert global_alphas is not None
-        assert X_shuffled is not None
-        assert X_shuffled_cond is not None
+        assert values is not None
 
         # If not leaf node, compute entropy, cardinality, and alpha of the node
         if not (left == -1 and right == -1):
             split_feature = X_cond[:, feature]
             _, counts = np.unique(split_feature, return_counts=True)
 
-            entropies[node] = np.maximum(scipy.stats.entropy(counts), 1)
-            log_cardinalities[node] = np.log(len(counts))
-            alphas[node] = compute_alpha(
-                X_cond, y_cond, feature, threshold, criterion
-            )
-            global_alphas[node] = compute_global_alpha(
-                X_cond, X_shuffled_cond, y_cond, feature, threshold, criterion
-            )
+            if value_type == "entropy":
+                values[node] = np.maximum(scipy.stats.entropy(counts), 1)
+            elif value_type == "log_cardinality":
+                values[node] = np.log(len(counts))
+            elif value_type == "alpha":
+                values[node] = compute_alpha(
+                    X_cond, y_cond, feature, threshold, criterion
+                )
+            elif value_type == "global_alpha":
+                values[node] = compute_global_alpha(
+                    X_cond,
+                    X_shuffled_cond,
+                    y_cond,
+                    feature,
+                    threshold,
+                    criterion,
+                )
 
             left_rows = split_feature <= threshold
             X_train_left = X_cond[left_rows]
             X_train_right = X_cond[~left_rows]
             y_train_left = y_cond[left_rows]
             y_train_right = y_cond[~left_rows]
-            X_shuffled_left = X_shuffled_cond[left_rows]
-            X_shuffled_right = X_shuffled_cond[~left_rows]
+
+            X_shuffled_left = None
+            X_shuffled_right = None
+            if X_shuffled_cond is not None:
+                X_shuffled_left = X_shuffled_cond[left_rows]
+                X_shuffled_right = X_shuffled_cond[~left_rows]
 
             # Recursively compute entropy and cardinality of the children
             self._compute_node_values_rec(
                 dt,
                 X_train_left,
                 y_train_left,
+                value_type,
                 left,
-                entropies,
-                log_cardinalities,
-                alphas,
-                global_alphas,
+                values,
                 X_shuffled,
                 X_shuffled_left,
             )
@@ -141,44 +160,26 @@ class ShrinkageEstimator(BaseEstimator):
                 dt,
                 X_train_right,
                 y_train_right,
+                value_type,
                 right,
-                entropies,
-                log_cardinalities,
-                alphas,
-                global_alphas,
+                values,
                 X_shuffled,
                 X_shuffled_right,
             )
-        return entropies, log_cardinalities, alphas, global_alphas
+        return values
 
-    def _compute_node_values(self, X, y):
-        self.entropies_ = []
-        self.log_cardinalities_ = []
-        self.alphas_ = []
-        self.global_alphas_ = []
+    def _compute_node_values(self, X, y, value_type):
         if hasattr(self.estimator_, "estimators_"):  # Random Forest
+            node_values = []
             for estimator in self.estimator_.estimators_:
-                (
-                    entropies,
-                    log_cardinalities,
-                    alphas,
-                    global_alphas,
-                ) = self._compute_node_values_rec(estimator, X, y)
-                self.entropies_.append(entropies)
-                self.log_cardinalities_.append(log_cardinalities)
-                self.alphas_.append(alphas)
-                self.global_alphas_.append(global_alphas)
+                node_values.append(
+                    self._compute_node_values_rec(estimator, X, y, value_type)
+                )
+            self.node_values[value_type] = node_values
         else:  # Single tree
-            (
-                entropies,
-                log_cardinalities,
-                alphas,
-                global_alphas,
-            ) = self._compute_node_values_rec(self.estimator_, X, y)
-            self.entropies_.append(entropies)
-            self.log_cardinalities_.append(log_cardinalities)
-            self.alphas_.append(alphas)
-            self.global_alphas_.append(global_alphas)
+            self.node_values[value_type] = [
+                self._compute_node_values_rec(self.estimator_, X, y, value_type)
+            ]
 
     def _shrink_tree_rec(
         self,
@@ -210,18 +211,11 @@ class ShrinkageEstimator(BaseEstimator):
                 reg = 1 + (self.lmb / parent_num_samples)
             else:
                 # Adaptive shrinkage
-                if self.shrink_mode == "hs_entropy":
-                    node_value = self.entropies_[dt_idx][parent_node]
-                elif self.shrink_mode == "hs_log_cardinality":
-                    node_value = self.log_cardinalities_[dt_idx][parent_node]
-                elif self.shrink_mode == "hs_permutation":
-                    node_value = 1 / self.alphas_[dt_idx][parent_node]
-                elif self.shrink_mode == "hs_global_permutation":
-                    node_value = 1 / self.global_alphas_[dt_idx][parent_node]
-                else:
-                    raise ValueError(
-                        f"Unknown shrink mode: {self.shrink_mode}"
-                    )
+                value_type = self.shrink_mode_to_value_type[self.shrink_mode]
+                node_values = self.node_values[value_type]
+                assert node_values is not None
+
+                node_value = node_values[dt_idx][parent_node]
                 reg = 1 + (self.lmb * node_value / parent_num_samples)
             cum_sum += (value - parent_val) / reg
 
@@ -258,7 +252,8 @@ class ShrinkageEstimator(BaseEstimator):
         self.orig_estimator_ = deepcopy(self.estimator_)
 
         # Compute node values (entropy, log cardinality, alpha)
-        self._compute_node_values(X, y)
+        value_type = self.shrink_mode_to_value_type[self.shrink_mode]
+        self._compute_node_values(X, y, value_type)
 
         # Apply hierarchical shrinkage
         self.shrink()
@@ -271,9 +266,15 @@ class ShrinkageEstimator(BaseEstimator):
         else:  # Single tree
             self._shrink_tree_rec(self.estimator_, 0)
 
-    def reshrink(self, shrink_mode=None, lmb=None):
+    def reshrink(self, shrink_mode=None, lmb=None, X=None, y=None):
         if shrink_mode is not None:
             self.shrink_mode = shrink_mode
+            value_type = self.shrink_mode_to_value_type[self.shrink_mode]
+            if self.node_values[value_type] is None:
+                assert X is not None and y is not None, (
+                    "X and y must b given to compute node values"
+                )
+                self._compute_node_values(X, y, value_type)
         if lmb is not None:
             self.lmb = lmb
 
