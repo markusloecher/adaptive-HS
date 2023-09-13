@@ -4,7 +4,6 @@ from numpy import typing as npt
 from sklearn.model_selection import train_test_split
 from adhs import cross_val_shrinkage, ShrinkageClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import roc_auc_score
 import numpy as np
 from shap import TreeExplainer

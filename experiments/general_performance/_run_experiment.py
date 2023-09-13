@@ -31,6 +31,9 @@ def run_experiment(
         prog.set_postfix({"dataset": ds_name})
         X, y, _ = get_clean_dataset(ds_id, ds_source)
 
+        if ds_name == "red-wine":
+            y = y.astype(int)
+
         # results is a list of results from single_rep:
         # [{shrink_mode -> n_lambdas}]
         results: List[Dict[str, List[float]]] = []
