@@ -73,5 +73,9 @@ if __name__ == "__main__":
                 for _ in range(args.n_replications)
             )  # type: ignore
         
+        # Add replication column to each dataframe
+        for i, df in enumerate(results):
+            df["replication"] = i
+        
         all_results = pd.concat(results)
         all_results.to_csv(os.path.join(args.out_dir, f"{ds_name}.csv"), index=False)

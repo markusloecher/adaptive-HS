@@ -41,8 +41,16 @@ def run_experiment(
                 )
             )
 
-    importances = pd.concat([pd.DataFrame.from_records(r[0]) for r in results])
-    scores = pd.concat([pd.DataFrame.from_records(r[1]) for r in results])
+    importances_dfs = [pd.DataFrame.from_records(r[0]) for r in results]
+    scores_dfs = [pd.DataFrame.from_records(r[1]) for r in results]
+
+    # Add replication column to each dataframe
+    for i, (importances, scores) in enumerate(zip(importances_dfs, scores_dfs)):
+        importances["replication"] = i
+        scores["replication"] = i
+
+    importances = pd.concat(importances_dfs)
+    scores = pd.concat(scores_dfs)
 
     importances.to_csv(os.path.join(out_path, "importances.csv"), index=False)
     scores.to_csv(os.path.join(out_path, "scores.csv"), index=False)
