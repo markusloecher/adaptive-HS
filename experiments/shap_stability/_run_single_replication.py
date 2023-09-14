@@ -19,7 +19,7 @@ def run_single_replication(
     y_shap: npt.NDArray,
 ):
     # Randomly sample 2/3 of X, y
-    X_train, _, y_train, _ = train_test_split(X, y, test_size=1/3)
+    X_train, _, y_train, _ = train_test_split(X, y, test_size=1/3, stratify=y)
 
     hsc = ShrinkageClassifier(base_estimator=RandomForestClassifier())
 

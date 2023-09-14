@@ -21,7 +21,7 @@ def run_single_replication(
     """
     # Split the data
     train_index, test_index = train_test_split(
-        np.arange(X.shape[0]), test_size=0.2
+        np.arange(X.shape[0]), test_size=0.2, stratify=y
     )
 
     # shrink_mode -> [n_lambdas]

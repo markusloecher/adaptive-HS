@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
         # Separate 50 samples for computing Shapley values
         X, X_shap, y, y_shap = train_test_split(
-            X, y, test_size=50, random_state=0
+            X, y, test_size=50, random_state=0, stratify=y
         )
 
         results: List[pd.DataFrame] = []
