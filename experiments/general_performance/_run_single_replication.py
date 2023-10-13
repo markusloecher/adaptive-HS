@@ -1,8 +1,11 @@
-from adhs import ShrinkageClassifier, ShrinkageRegressor
-from sklearn.model_selection import train_test_split
+from typing import Callable, Dict, List
+
 import numpy as np
-from typing import List, Callable, Dict
 from _util import TreeBasedModel
+from numpy import typing as npt
+from sklearn.model_selection import train_test_split
+
+from adhs import ShrinkageClassifier, ShrinkageRegressor
 
 
 def run_single_replication(
@@ -13,11 +16,17 @@ def run_single_replication(
     lambdas: List[float],
     problem_type: str,
     score_fn: Callable,
-) -> Dict[str, List[float]]:
+) -> Dict[str, npt.NDArray]:
     """
     Performs a single replication of the experiment for a given dataset.
     Parallelization will be over the replications, so this function does not
     use parallelization, as it corresponds to a single process.
+
+    Returns a dictionary mapping shrink_mode to a NumPy array of shape
+        (len(lambdas), num_trees)
+    where num_trees is the number of trees in the base estimator.
+    Element (i,j) corresponds to the score achieved by setting lambda to
+    lambdas[i] and using only the first [j] trees.
     """
     # Split the data
     train_index, test_index = train_test_split(
@@ -46,8 +55,18 @@ def run_single_replication(
                 X=X[train_index],
                 y=y[train_index],
             )
-            scores[shrink_mode].append(
-                score_fn(y[test_index], model.predict(X[test_index]))
-            )
+            predict_fn = model.predict
+            if isinstance(model, ShrinkageClassifier):
+                predict_fn = model.predict_proba
 
-    return scores
+            predictions = predict_fn(X[test_index], individual_trees=True)
+            scores[shrink_mode].append(
+                [
+                    score_fn(y[test_index], np.average(predictions[:i]))
+                    for i in range(1, len(predictions) + 1)
+                ]
+            )
+    result = {}
+    for shrink_mode in scores:
+        result[shrink_mode] = np.array(scores[shrink_mode])
+    return result

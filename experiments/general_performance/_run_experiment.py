@@ -1,11 +1,13 @@
-import pandas as pd
 import os
-from tqdm import tqdm
-from imodels.util.data_util import get_clean_dataset
-from joblib import Parallel, delayed
-from typing import List, Tuple, Callable, Dict
+from typing import Callable, Dict, List, Tuple
+
+import pandas as pd
 from _run_single_replication import run_single_replication
 from _util import TreeBasedModel
+from imodels.util.data_util import get_clean_dataset
+from joblib import Parallel, delayed
+from numpy import typing as npt
+from tqdm import tqdm
 
 
 def run_experiment(
@@ -28,6 +30,9 @@ def run_experiment(
         os.makedirs(out_path)
 
     for ds_name, ds_id, ds_source in prog:
+        ds_path = os.path.join(out_path, ds_name)
+        if not os.path.isdir(ds_path):
+            os.makedirs(ds_path)
         prog.set_postfix({"dataset": ds_name})
         X, y, _ = get_clean_dataset(ds_id, ds_source)
 
@@ -35,8 +40,8 @@ def run_experiment(
             y = y.astype(int)
 
         # results is a list of results from single_rep:
-        # [{shrink_mode -> n_lambdas}]
-        results: List[Dict[str, List[float]]] = []
+        # [{shrink_mode -> NDArray(len(lambdas), num_trees)}]
+        results: List[Dict[str, npt.NDArray]] = []
         if n_jobs == 1:
             for _ in range(n_replications):
                 results.append(
@@ -68,20 +73,21 @@ def run_experiment(
 
         # Save results to CSV:
         # replication, shrink_mode, lambda, score
-        records = []
-        score_key = "MSE" if problem_type == "regression" else "ROC AUC"
+        score_key = "R2" if problem_type == "regression" else "ROC AUC"
         for i, result in enumerate(results):
-            for shrink_mode in result:
+            for shrink_mode, sm_result in result.items():
+                records = []
                 for j, lmb in enumerate(lambdas):
-                    records.append(
-                        {
-                            "replication": i,
-                            "shrink_mode": shrink_mode,
-                            "lambda": lmb,
-                            score_key: result[shrink_mode][j],
-                        }
-                    )
-        pd.DataFrame(records).to_csv(
-            os.path.join(out_path, f"{ds_name}.csv"), index=False
-        )
+                    for k in range(sm_result.shape[1]):
+                        records.append(
+                            {
+                                "shrink_mode": shrink_mode,
+                                "lambda": lmb,
+                                "num_trees": k + 1,
+                                score_key: sm_result[j,k],
+                            }
+                        )
+                pd.DataFrame(records).to_csv(
+                    os.path.join(ds_path, f"rep_{i}.csv"), index=False
+                )
 

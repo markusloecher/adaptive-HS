@@ -178,7 +178,9 @@ class ShrinkageEstimator(BaseEstimator):
             self.node_values[value_type] = node_values
         else:  # Single tree
             self.node_values[value_type] = [
-                self._compute_node_values_rec(self.estimator_, X, y, value_type)
+                self._compute_node_values_rec(
+                    self.estimator_, X, y, value_type
+                )
             ]
 
     def _shrink_tree_rec(
@@ -271,9 +273,9 @@ class ShrinkageEstimator(BaseEstimator):
             self.shrink_mode = shrink_mode
             value_type = self.shrink_mode_to_value_type[self.shrink_mode]
             if self.node_values[value_type] is None:
-                assert X is not None and y is not None, (
-                    "X and y must b given to compute node values"
-                )
+                assert (
+                    X is not None and y is not None
+                ), "X and y must b given to compute node values"
                 self._compute_node_values(X, y, value_type)
         if lmb is not None:
             self.lmb = lmb
@@ -300,8 +302,15 @@ class ShrinkageEstimator(BaseEstimator):
         self.feature_names_in_ = feature_names
         return X, y
 
-    def predict(self, X, *args, **kwargs):
+    def predict(self, X, individual_trees=False, *args, **kwargs):
         check_is_fitted(self)
+        if individual_trees and hasattr(self.estimator_, "estimators_"):
+            return np.array(
+                [
+                    tree.predict(X, *args, **kwargs)
+                    for tree in self.estimator_.estimators_
+                ]
+            )
         return self.estimator_.predict(X, *args, **kwargs)
 
     def score(self, X, y, *args, **kwargs):
@@ -318,8 +327,15 @@ class ShrinkageClassifier(ShrinkageEstimator, ClassifierMixin):
         self.classes_ = self.estimator_.classes_
         return self
 
-    def predict_proba(self, X, *args, **kwargs):
+    def predict_proba(self, X, individual_trees=False, *args, **kwargs):
         check_is_fitted(self)
+        if individual_trees and hasattr(self.estimator_, "estimators_"):
+            return np.array(
+                [
+                    tree.predict_proba(X, *args, **kwargs)
+                    for tree in self.estimator_.estimators_
+                ]
+            )
         return self.estimator_.predict_proba(X, *args, **kwargs)
 
 

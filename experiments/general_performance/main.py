@@ -1,6 +1,6 @@
 import argparse
 import os
-from sklearn.metrics import roc_auc_score, mean_squared_error
+from sklearn.metrics import roc_auc_score, r2_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 import numpy as np
@@ -69,7 +69,7 @@ if __name__ == "__main__":
             args.shrink_modes,
             lambdas,
             "regression",
-            mean_squared_error,
+            r2_score,
             args.n_jobs,
             args.n_replications,
             args.out_dir,
