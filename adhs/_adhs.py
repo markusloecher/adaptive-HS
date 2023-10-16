@@ -35,7 +35,6 @@ class ShrinkageEstimator(BaseEstimator):
         }
 
         self.shrink_mode_to_value_type = {
-            "hs": None,
             "hs_entropy": "entropy",
             "hs_log_cardinality": "log_cardinality",
             "hs_permutation": "alpha",
@@ -253,12 +252,17 @@ class ShrinkageEstimator(BaseEstimator):
         # Save a copy of the original estimator
         self.orig_estimator_ = deepcopy(self.estimator_)
 
-        # Compute node values (entropy, log cardinality, alpha)
-        value_type = self.shrink_mode_to_value_type[self.shrink_mode]
-        self._compute_node_values(X, y, value_type)
+        # Clear node values
+        for value_type in self.node_values:
+            self.node_values[value_type] = None
 
-        # Apply hierarchical shrinkage
-        self.shrink()
+        # Compute node values (entropy, log cardinality, alpha)
+        if self.shrink_mode in self.shrink_mode_to_value_type:
+            value_type = self.shrink_mode_to_value_type[self.shrink_mode]
+            self._compute_node_values(X, y, value_type)
+            
+            # Apply hierarchical shrinkage
+            self.shrink()
         return self
 
     def shrink(self):
@@ -271,12 +275,13 @@ class ShrinkageEstimator(BaseEstimator):
     def reshrink(self, shrink_mode=None, lmb=None, X=None, y=None):
         if shrink_mode is not None:
             self.shrink_mode = shrink_mode
-            value_type = self.shrink_mode_to_value_type[self.shrink_mode]
-            if self.node_values[value_type] is None:
-                assert (
-                    X is not None and y is not None
-                ), "X and y must b given to compute node values"
-                self._compute_node_values(X, y, value_type)
+            if shrink_mode in self.shrink_mode_to_value_type:
+                value_type = self.shrink_mode_to_value_type[self.shrink_mode]
+                if self.node_values[value_type] is None:
+                    assert (
+                        X is not None and y is not None
+                    ), "X and y must b given to compute node values"
+                    self._compute_node_values(X, y, value_type)
         if lmb is not None:
             self.lmb = lmb
 
@@ -305,12 +310,14 @@ class ShrinkageEstimator(BaseEstimator):
     def predict(self, X, individual_trees=False, *args, **kwargs):
         check_is_fitted(self)
         if individual_trees and hasattr(self.estimator_, "estimators_"):
-            return np.array(
+            result = np.array(
                 [
                     tree.predict(X, *args, **kwargs)
                     for tree in self.estimator_.estimators_
                 ]
             )
+            if len(self.estimator_.estimators_) == 1:
+                return result[np.newaxis, :]
         return self.estimator_.predict(X, *args, **kwargs)
 
     def score(self, X, y, *args, **kwargs):

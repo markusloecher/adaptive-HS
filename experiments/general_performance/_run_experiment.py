@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, List, Tuple
 
 import pandas as pd
 from _run_single_replication import run_single_replication
@@ -40,8 +40,8 @@ def run_experiment(
             y = y.astype(int)
 
         # results is a list of results from single_rep:
-        # [{shrink_mode -> NDArray(len(lambdas), num_trees)}]
-        results: List[Dict[str, npt.NDArray]] = []
+        # [(NDArray[num_trees], best_shrink_mode, best_lmb)]
+        results: List[Tuple[npt.NDArray, str, float]] = []
         if n_jobs == 1:
             for _ in range(n_replications):
                 results.append(
@@ -74,20 +74,18 @@ def run_experiment(
         # Save results to CSV:
         # replication, shrink_mode, lambda, score
         score_key = "R2" if problem_type == "regression" else "ROC AUC"
-        for i, result in enumerate(results):
-            for shrink_mode, sm_result in result.items():
-                records = []
-                for j, lmb in enumerate(lambdas):
-                    for k in range(sm_result.shape[1]):
-                        records.append(
-                            {
-                                "shrink_mode": shrink_mode,
-                                "lambda": lmb,
-                                "num_trees": k + 1,
-                                score_key: sm_result[j,k],
-                            }
-                        )
-                pd.DataFrame(records).to_csv(
-                    os.path.join(ds_path, f"rep_{i}.csv"), index=False
+        for i, (result, shrink_mode, lmb) in enumerate(results):
+            records = []
+            for k in range(result.shape[0]):
+                records.append(
+                    {
+                        "shrink_mode": shrink_mode,
+                        "lambda": lmb,
+                        "num_trees": k + 1,
+                        score_key: result[k],
+                    }
                 )
+            pd.DataFrame(records).to_csv(
+                os.path.join(ds_path, f"rep_{i}.csv"), index=False
+            )
 
