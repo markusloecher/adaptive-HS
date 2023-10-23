@@ -8,7 +8,7 @@ import os
 
 
 def run_experiment(
-    lambdas: List[float],
+    lmb: float,
     relevances: List[float],
     shrink_modes: List[str],
     base_estimator: TreeBasedModel,
@@ -25,7 +25,7 @@ def run_experiment(
     if n_jobs != 1:
         results = joblib.Parallel(n_jobs=n_jobs, verbose=10)(
             joblib.delayed(run_single_replication)(
-                lambdas, relevances, shrink_modes, base_estimator
+                lmb, relevances, shrink_modes, base_estimator
             )
             for _ in range(n_replications)
         )  # type: ignore
@@ -34,7 +34,7 @@ def run_experiment(
         for _ in trange(n_replications):
             results.append(
                 run_single_replication(
-                    lambdas,
+                    lmb,
                     relevances,
                     shrink_modes,
                     base_estimator,

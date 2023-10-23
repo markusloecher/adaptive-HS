@@ -26,12 +26,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    lambdas = [0.0, 0.1, 1.0, 10.0, 25.0, 50.0, 100.0]
+    lmb = 100.0
     relevances = [0.0, 0.05, 0.1, 0.15, 0.2]
 
     if "strobl_rf" in args.experiments:
         run_experiment(
-            lambdas,
+            lmb,
             relevances,
             args.shrink_modes,
             RandomForestClassifier(),
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         )
     if "strobl_dt" in args.experiments:
         run_experiment(
-            lambdas,
+            lmb,
             relevances,
             args.shrink_modes,
             DecisionTreeClassifier(),
