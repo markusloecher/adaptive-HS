@@ -52,7 +52,7 @@ if __name__ == "__main__":
     if "classification_rf" in args.experiments:
         run_experiment(
             CLF_DATASETS,
-            RandomForestClassifier(n_estimators=10),
+            RandomForestClassifier(),
             args.shrink_modes,
             lambdas,
             "classification",

@@ -260,9 +260,11 @@ class ShrinkageEstimator(BaseEstimator):
         if self.shrink_mode in self.shrink_mode_to_value_type:
             value_type = self.shrink_mode_to_value_type[self.shrink_mode]
             self._compute_node_values(X, y, value_type)
-            
-            # Apply hierarchical shrinkage
+
+        # Apply hierarchical shrinkage
+        if self.shrink_mode != "no_shrinkage":
             self.shrink()
+
         return self
 
     def shrink(self):
@@ -289,7 +291,8 @@ class ShrinkageEstimator(BaseEstimator):
         self.estimator_ = deepcopy(self.orig_estimator_)
 
         # Apply hierarchical shrinkage
-        self.shrink()
+        if self.shrink_mode != "no_shrinkage":
+            self.shrink()
 
     def _validate_arguments(self, X, y, feature_names):
         if self.shrink_mode not in [
@@ -298,6 +301,7 @@ class ShrinkageEstimator(BaseEstimator):
             "hs_log_cardinality",
             "hs_permutation",
             "hs_global_permutation",
+            "no_shrinkage"
         ]:
             raise ValueError("Invalid choice for shrink_mode")
         X, y, feature_names = check_fit_arguments(
@@ -309,15 +313,21 @@ class ShrinkageEstimator(BaseEstimator):
 
     def predict(self, X, individual_trees=False, *args, **kwargs):
         check_is_fitted(self)
-        if individual_trees and hasattr(self.estimator_, "estimators_"):
-            result = np.array(
-                [
-                    tree.predict(X, *args, **kwargs)
-                    for tree in self.estimator_.estimators_
-                ]
-            )
-            if len(self.estimator_.estimators_) == 1:
-                return result[np.newaxis, :]
+        if individual_trees:
+            if hasattr(self.estimator_, "estimators_"):
+                return np.array(
+                    [
+                        tree.predict(X, *args, **kwargs)
+                        for tree in self.estimator_.estimators_
+                    ]
+                )
+            else:
+                # This model is a single decision tree
+                # Simply wrap the prediction in an array to maintain
+                # compatibility with RF models
+                return np.array(
+                    [self.estimator_.predict(X, *args, **kwargs)]
+                )
         return self.estimator_.predict(X, *args, **kwargs)
 
     def score(self, X, y, *args, **kwargs):
@@ -336,13 +346,22 @@ class ShrinkageClassifier(ShrinkageEstimator, ClassifierMixin):
 
     def predict_proba(self, X, individual_trees=False, *args, **kwargs):
         check_is_fitted(self)
-        if individual_trees and hasattr(self.estimator_, "estimators_"):
-            return np.array(
-                [
-                    tree.predict_proba(X, *args, **kwargs)
-                    for tree in self.estimator_.estimators_
-                ]
-            )
+        if individual_trees:
+            if hasattr(self.estimator_, "estimators_"):
+                # Return all predictions for all trees separately
+                return np.array(
+                    [
+                        tree.predict_proba(X, *args, **kwargs)
+                        for tree in self.estimator_.estimators_
+                    ]
+                )
+            else:
+                # This model is a single decision tree
+                # Simply wrap the prediction in an array to maintain
+                # compatibility with RF models
+                return np.array(
+                    [self.estimator_.predict_proba(X, *args, **kwargs)]
+                )
         return self.estimator_.predict_proba(X, *args, **kwargs)
 
 

@@ -32,6 +32,7 @@ REG_DATASETS = [
 ]
 
 SHRINKAGE_TYPES = [
+    "no_shrinkage",
     "hs",
     "hs_entropy",
     "hs_log_cardinality",
