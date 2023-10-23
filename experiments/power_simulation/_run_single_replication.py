@@ -38,12 +38,13 @@ def run_single_replication(
                 for i, imp in enumerate(hsc.estimator_.feature_importances_)
             }
             explainer = TreeExplainer(hsc.estimator_, X_train)
+            # Shape: (n_outputs, n_samples, n_features)
             shap_values = np.array(
                 explainer.shap_values(X_test, check_additivity=False)
             )
             for i in range(5):
                 importances_record[f"SHAP_{i}"] = np.mean(
-                    np.abs(shap_values[:, i])
+                    np.abs(shap_values[y_test, :, i])
                 )
 
             importances_record["relevance"] = relevance_str

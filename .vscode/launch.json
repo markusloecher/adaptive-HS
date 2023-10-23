@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["--n-jobs", "1", "--n-replications", "1", "--out-dir", "out"],
+            "args": ["--n-jobs", "1", "--n-replications", "1", "--out-dir", "out", "--experiments", "strobl_dt"],
             "justMyCode": true
         }
     ]
