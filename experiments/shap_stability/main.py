@@ -40,6 +40,7 @@ if __name__ == "__main__":
     datasets = [ds for ds in CLF_DATASETS if ds[0] in args.datasets]
     for ds_name, ds_id, ds_source in datasets:
         X, y, feature_names = get_clean_dataset(ds_id, ds_source)
+        y = y.astype(int)
 
         # Separate 50 samples for computing Shapley values
         X, X_shap, y, y_shap = train_test_split(
