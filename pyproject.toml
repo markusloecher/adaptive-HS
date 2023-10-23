@@ -1,3 +1,60 @@
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "adhs"
+version = "0.1.0"
+description = "Adaptive Hierarchical Shrinkage"
+readme = "README.md"
+authors = [
+    { name = "Arne Gevaert", email = "arne.gevaert@ugent.be" },
+    { name = "Markus Loecher" },
+    { name = "Bastian Pfeifer" }
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+]
+dependencies = [
+    "numpy==1.23.5",
+    "scipy==1.10.0",
+    "pandas==1.5.3",
+    "scikit-learn==1.2.1",
+]
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["adhs"]
+
+[project.optional-dependencies]
+dev = [
+    "bumpver"
+]
+experiments = [
+    "matplotlib==3.7.0",
+    "seaborn==0.12.2",
+    "tqdm==4.64.1",
+    "ipykernel==6.25.0",
+    "imodels==1.4.0",
+    "pmlb==1.0.1.post3",
+    "shap==0.42.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/arnegevaert/adaptive-hierarchical-shrinkage"
+
+[tool.bumpver]
+current_version = "0.1.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "Bump version {old_version} -> {new_version}"
+commit = true
+tag = false
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
+"adhs/__init__.py" = ["{version}"]
