@@ -44,7 +44,7 @@ def run_single_replication(
             )
             for i in range(5):
                 importances_record[f"SHAP_{i}"] = np.mean(
-                    np.abs(shap_values[y_test, :, i])
+                    np.abs(shap_values[y_test.astype(int), :, i])
                 )
 
             importances_record["relevance"] = relevance_str
