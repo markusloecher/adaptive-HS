@@ -22,6 +22,7 @@ class ShrinkageEstimator(BaseEstimator):
         lmb: float = 1,
         random_state=None,
     ):
+        assert shrink_mode in ["hs", "hs_entropy", "hs_log_cardinality", "hs_permutation", "hs_global_permutation", "no_shrinkage"]
         self.base_estimator = base_estimator
         self.shrink_mode = shrink_mode
         self.lmb = lmb
@@ -44,6 +45,87 @@ class ShrinkageEstimator(BaseEstimator):
     @abstractmethod
     def get_default_estimator(self):
         raise NotImplemented
+
+    def fit(self, X, y, **kwargs):
+        X, y = self._validate_arguments(
+            X, y, kwargs.pop("feature_names", None)
+        )
+
+        if self.base_estimator is not None:
+            self.estimator_ = clone(self.base_estimator)
+        else:
+            self.estimator_ = self.get_default_estimator()
+
+        self.estimator_.set_params(random_state=self.random_state)
+        self.estimator_.fit(X, y, **kwargs)
+
+        # Save a copy of the original estimator
+        self.orig_estimator_ = deepcopy(self.estimator_)
+
+        # Clear node values
+        for value_type in self.node_values:
+            self.node_values[value_type] = None
+
+        # Compute node values (entropy, log cardinality, alpha)
+        if self.shrink_mode in self.shrink_mode_to_value_type:
+            value_type = self.shrink_mode_to_value_type[self.shrink_mode]
+            self._compute_node_values(X, y, value_type)
+
+        # Apply hierarchical shrinkage
+        if self.shrink_mode != "no_shrinkage":
+            self._shrink()
+
+        return self
+
+    def reshrink(self, shrink_mode=None, lmb=None, X=None, y=None):
+        if shrink_mode is not None:
+            self.shrink_mode = shrink_mode
+            if shrink_mode in self.shrink_mode_to_value_type:
+                value_type = self.shrink_mode_to_value_type[self.shrink_mode]
+                if self.node_values[value_type] is None:
+                    assert (
+                        X is not None and y is not None
+                    ), "X and y must b given to compute node values"
+                    self._compute_node_values(X, y, value_type)
+        if lmb is not None:
+            self.lmb = lmb
+
+        # Reset the estimator to the original one
+        self.estimator_ = deepcopy(self.orig_estimator_)
+
+        # Apply hierarchical shrinkage
+        if self.shrink_mode != "no_shrinkage":
+            self._shrink()
+
+    def predict(self, X, individual_trees=False, *args, **kwargs):
+        check_is_fitted(self)
+        if individual_trees:
+            if hasattr(self.estimator_, "estimators_"):
+                return np.array(
+                    [
+                        tree.predict(X, *args, **kwargs)
+                        for tree in self.estimator_.estimators_
+                    ]
+                )
+            else:
+                # This model is a single decision tree
+                # Simply wrap the prediction in an array to maintain
+                # compatibility with RF models
+                return np.array(
+                    [self.estimator_.predict(X, *args, **kwargs)]
+                )
+        return self.estimator_.predict(X, *args, **kwargs)
+
+    def score(self, X, y, *args, **kwargs):
+        check_is_fitted(self)
+        return self.estimator_.score(X, y, *args, **kwargs)
+
+    def _shrink(self):
+        if hasattr(self.estimator_, "estimators_"):  # Random Forest
+            for i, estimator in enumerate(self.estimator_.estimators_):
+                self._shrink_tree_rec(estimator, i)
+        else:  # Single tree
+            self._shrink_tree_rec(self.estimator_, 0)
 
     def _compute_node_values_rec(
         self,
@@ -236,64 +318,6 @@ class ShrinkageEstimator(BaseEstimator):
                 dt, dt_idx, right, node, value, cum_sum.copy()
             )
 
-    def fit(self, X, y, **kwargs):
-        X, y = self._validate_arguments(
-            X, y, kwargs.pop("feature_names", None)
-        )
-
-        if self.base_estimator is not None:
-            self.estimator_ = clone(self.base_estimator)
-        else:
-            self.estimator_ = self.get_default_estimator()
-
-        self.estimator_.set_params(random_state=self.random_state)
-        self.estimator_.fit(X, y, **kwargs)
-
-        # Save a copy of the original estimator
-        self.orig_estimator_ = deepcopy(self.estimator_)
-
-        # Clear node values
-        for value_type in self.node_values:
-            self.node_values[value_type] = None
-
-        # Compute node values (entropy, log cardinality, alpha)
-        if self.shrink_mode in self.shrink_mode_to_value_type:
-            value_type = self.shrink_mode_to_value_type[self.shrink_mode]
-            self._compute_node_values(X, y, value_type)
-
-        # Apply hierarchical shrinkage
-        if self.shrink_mode != "no_shrinkage":
-            self.shrink()
-
-        return self
-
-    def shrink(self):
-        if hasattr(self.estimator_, "estimators_"):  # Random Forest
-            for i, estimator in enumerate(self.estimator_.estimators_):
-                self._shrink_tree_rec(estimator, i)
-        else:  # Single tree
-            self._shrink_tree_rec(self.estimator_, 0)
-
-    def reshrink(self, shrink_mode=None, lmb=None, X=None, y=None):
-        if shrink_mode is not None:
-            self.shrink_mode = shrink_mode
-            if shrink_mode in self.shrink_mode_to_value_type:
-                value_type = self.shrink_mode_to_value_type[self.shrink_mode]
-                if self.node_values[value_type] is None:
-                    assert (
-                        X is not None and y is not None
-                    ), "X and y must b given to compute node values"
-                    self._compute_node_values(X, y, value_type)
-        if lmb is not None:
-            self.lmb = lmb
-
-        # Reset the estimator to the original one
-        self.estimator_ = deepcopy(self.orig_estimator_)
-
-        # Apply hierarchical shrinkage
-        if self.shrink_mode != "no_shrinkage":
-            self.shrink()
-
     def _validate_arguments(self, X, y, feature_names):
         if self.shrink_mode not in [
             "hs",
@@ -310,30 +334,6 @@ class ShrinkageEstimator(BaseEstimator):
         self.n_features_in_ = X.shape[1]
         self.feature_names_in_ = feature_names
         return X, y
-
-    def predict(self, X, individual_trees=False, *args, **kwargs):
-        check_is_fitted(self)
-        if individual_trees:
-            if hasattr(self.estimator_, "estimators_"):
-                return np.array(
-                    [
-                        tree.predict(X, *args, **kwargs)
-                        for tree in self.estimator_.estimators_
-                    ]
-                )
-            else:
-                # This model is a single decision tree
-                # Simply wrap the prediction in an array to maintain
-                # compatibility with RF models
-                return np.array(
-                    [self.estimator_.predict(X, *args, **kwargs)]
-                )
-        return self.estimator_.predict(X, *args, **kwargs)
-
-    def score(self, X, y, *args, **kwargs):
-        check_is_fitted(self)
-        return self.estimator_.score(X, y, *args, **kwargs)
-
 
 class ShrinkageClassifier(ShrinkageEstimator, ClassifierMixin):
     def get_default_estimator(self):
@@ -363,7 +363,6 @@ class ShrinkageClassifier(ShrinkageEstimator, ClassifierMixin):
                     [self.estimator_.predict_proba(X, *args, **kwargs)]
                 )
         return self.estimator_.predict_proba(X, *args, **kwargs)
-
 
 class ShrinkageRegressor(ShrinkageEstimator, RegressorMixin):
     def get_default_estimator(self):
