@@ -76,9 +76,10 @@ def cross_val_shrinkage(
     if verbose != 0:
         print("Training base models...")
     fold_models = [clone(shrinkage_estimator) for _ in range(n_splits)]
+    trained_fold_models = []
     if n_jobs != 1:
         with Parallel(n_jobs=n_jobs, verbose=verbose) as parallel:
-            parallel(
+            trained_fold_models = parallel(
                 delayed(_train_model)(fold_models[i], train_index)
                 for i, (train_index, _) in enumerate(cv.split(X))
             )
@@ -89,7 +90,7 @@ def cross_val_shrinkage(
             else enumerate(cv.split(X))
         )
         for i, (train_index, _) in gen:
-            fold_models[i] = _train_model(fold_models[i], train_index)
+            trained_fold_models[i] = _train_model(fold_models[i], train_index)
     if verbose != 0:
         print("Done.")
 
@@ -101,7 +102,7 @@ def cross_val_shrinkage(
             scores = np.array(
                 parallel(
                     delayed(_single_setting)(
-                        param_shrink_mode[i], param_lmb[i], fold_models
+                        param_shrink_mode[i], param_lmb[i], trained_fold_models
                     )
                     for i in range(len(param_shrink_mode))
                 )
@@ -115,7 +116,7 @@ def cross_val_shrinkage(
         scores = np.array(
             [
                 _single_setting(
-                    param_shrink_mode[i], param_lmb[i], fold_models
+                    param_shrink_mode[i], param_lmb[i], trained_fold_models
                 )
                 for i in param_range
             ]
