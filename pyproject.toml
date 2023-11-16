@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adhs"
-version = "0.1.2"
+version = "0.1.3"
 description = "Adaptive Hierarchical Shrinkage"
 readme = "README.md"
 authors = [
@@ -20,12 +20,12 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
 ]
 dependencies = [
-    "numpy==1.23.5",
-    "scipy==1.10.0",
-    "pandas==1.5.3",
-    "scikit-learn==1.2.1",
+    "numpy >= 1.23.0",
+    "scipy >= 1.10.0",
+    "pandas >= 1.5.0",
+    "scikit-learn >= 1.2.1",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 
 [tool.setuptools]
 packages = ["adhs"]
@@ -35,20 +35,20 @@ dev = [
     "bumpver"
 ]
 experiments = [
-    "matplotlib==3.7.0",
-    "seaborn==0.12.2",
-    "tqdm==4.64.1",
-    "ipykernel==6.25.0",
-    "imodels==1.4.0",
-    "pmlb==1.0.1.post3",
-    "shap==0.42.1",
+    "matplotlib",
+    "seaborn",
+    "tqdm",
+    "ipykernel",
+    "imodels",
+    "pmlb",
+    "shap >= 0.42.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/arnegevaert/adaptive-hierarchical-shrinkage"
 
 [tool.bumpver]
-current_version = "0.1.2"
+current_version = "0.1.3"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "Bump version {old_version} -> {new_version}"
 commit = true
