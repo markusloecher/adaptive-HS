@@ -29,9 +29,8 @@ This package exports 2 classes and 1 method:
 
 ### `ShrinkageClassifier` and `ShrinkageRegressor`
 Both classes inherit from `ShrinkageEstimator`, which extends `sklearn.base.BaseEstimator`. Adaptive hierarchical shrinkage can be summarized as follows:
-$$
-\hat{f}(\mathbf{x}) = \mathbb{E}_{t_0}[y] + \sum_{l=1}^L\frac{\mathbb{E}_{t_l}[y] - \mathbb{E}_{t_{l-1}}[y]}{1 + \frac{g(t_{l-1})}{N(t_{l-1})}}
-$$
+$$\hat{f}(\mathbf{x}) = \mathbb{E}_{t_0}[y] + \sum_{l=1}^L\frac{\mathbb{E}_{t_l}[y] - \mathbb{E}_{t_{l-1}}[y]}{1 + \frac{g(t_{l-1})}{N(t_{l-1})}}$$
+
 where $g(t_{l-1})$ is some function of the node $t_{l-1}$. Classical hierarchical shrinkage (Agarwal et al. 2022) corresponds to $g(t_{l-1}) = \lambda$, where $\lambda$ is a chosen constant.
 
 - `__init__()` parameters:
