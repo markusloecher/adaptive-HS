@@ -1,6 +1,7 @@
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-
+from _simulate_data import simulate_data
+from imodels.util.data_util import get_clean_dataset
 
 TreeBasedModel = (
     DecisionTreeClassifier
@@ -41,3 +42,12 @@ SHRINKAGE_TYPES = [
 ]
 
 EXPERIMENTS = ["classification_dt", "classification_rf", "regression"]
+
+def get_data_bench_sim(ds_id, ds_source, N, p):
+    if ds_source == "sim":
+        X, y, rlvFtrs = simulate_data(N, p)
+        X = X.to_numpy()
+        return X,y,rlvFtrs
+    else:
+        X, y, _ = get_clean_dataset(ds_id, ds_source)
+        return X,y,_ 

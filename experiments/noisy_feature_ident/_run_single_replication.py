@@ -133,6 +133,23 @@ def run_single_replication(
         model.lmb = best_lmb
         model.fit(X_train, y_train)
 
+        #######new code: compute MDI and SHAP !!#############
+        ###will not work out of the box yet ! ##################
+        importances_record = {
+                f"MDI_{i}": imp
+                for i, imp in enumerate(model.estimator_.feature_importances_)
+            }
+        explainer = TreeExplainer(model.estimator_, X_train)
+        # Shape: (n_outputs, n_samples, n_features)
+        shap_values = np.array(
+            explainer.shap_values(X_test, check_additivity=False)
+        )
+        p = X_train.shape[1]
+        for i in range(p):#p is the number of columns of X_train
+            importances_record[f"SHAP_{i}"] = np.mean(
+                np.abs(shap_values[y_test.astype(int), :, i])
+            )
+        ###################################################
         # Shape: [num_trees, num_samples]
         predictions = predict_fn(X_test, individual_trees=individual_trees)
         num_trees = predictions.shape[0]

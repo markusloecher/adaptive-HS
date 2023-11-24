@@ -3,7 +3,7 @@ from typing import Callable, List, Tuple, Dict
 
 import pandas as pd
 from _run_single_replication import run_single_replication
-from _util import TreeBasedModel
+from _util import TreeBasedModel, get_data_bench_sim
 from imodels.util.data_util import get_clean_dataset
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -30,7 +30,8 @@ def run_experiment(
 
     for ds_name, ds_id, ds_source in prog:
         prog.set_postfix({"dataset": ds_name})
-        X, y, _ = get_clean_dataset(ds_id, ds_source)
+        #X, y, _ = get_clean_dataset(ds_id, ds_source)
+        X, y, _ = get_data_bench_sim(ds_id, ds_source,100,10)
 
         if ds_name == "red-wine":
             y = y.astype(int)
